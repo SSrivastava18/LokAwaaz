@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 const Complaint = require("../models/complaintModel");
 const cloudinary = require("cloudinary").v2;
+const streamifier = require("streamifier");
 
 cloudinary.config({
   cloud_name: process.env.CLOUDNAME,
@@ -26,8 +27,17 @@ module.exports.getComplaintData = async (req, res) => {
       urgency: c.urgency,
       user: c.user,
       media: Array.isArray(c.media)
-        ? c.media.map((m) => ({ url: m.url, filename: m.filename, type: m.type }))
+        ? c.media.map((m) => ({
+            url: m.url,
+            filename: m.filename,
+            type: m.type,
+            thumbnailUrl: m.thumbnailUrl || null,
+          }))
         : [],
+      votes: c.votes || 0,
+      userHasUpvoted: c.upvotedBy?.some(
+        (u) => u.toString() === req.user?.id?.toString()
+      ),
     }));
 
     res.json({ success: true, data: normalizedComplaints });
@@ -40,7 +50,6 @@ module.exports.getComplaintData = async (req, res) => {
 // ==================== Add a new complaint ====================
 module.exports.addComplaint = async (req, res) => {
   try {
-    // Handle uploaded files
     const files = req.files?.media
       ? Array.isArray(req.files.media)
         ? req.files.media
@@ -50,14 +59,26 @@ module.exports.addComplaint = async (req, res) => {
     const uploadedMedia = [];
     for (const file of files) {
       const result = await cloudinary.uploader.upload(file.tempFilePath, {
-        resource_type: "auto", // handles image/video automatically
+        resource_type: "auto",
       });
 
-      uploadedMedia.push({
+      const mediaItem = {
         url: result.secure_url,
         filename: result.public_id,
         type: file.mimetype.startsWith("video") ? "video" : "image",
-      });
+      };
+
+      if (file.mimetype.startsWith("video")) {
+        // Generate thumbnail URL
+        const thumbnailUrl = cloudinary.url(result.public_id + ".jpg", {
+          resource_type: "video",
+          format: "jpg",
+          transformation: [{ width: 300, height: 200, crop: "fill" }],
+        });
+        mediaItem.thumbnailUrl = thumbnailUrl;
+      }
+
+      uploadedMedia.push(mediaItem);
     }
 
     const newComplaint = new Complaint({
@@ -65,7 +86,7 @@ module.exports.addComplaint = async (req, res) => {
       description: req.body.description?.trim(),
       category: req.body.category,
       location: req.body.location?.trim(),
-      urgency: req.body.urgency || "Medium", // default to Medium
+      urgency: req.body.urgency || "Medium",
       status: "Pending",
       media: uploadedMedia,
       user: req.user.id,
@@ -81,17 +102,20 @@ module.exports.addComplaint = async (req, res) => {
   } catch (error) {
     console.error("Error adding complaint:", error);
     if (error.name === "ValidationError") {
-      return res.status(400).json({ success: false, message: error.message, errors: error.errors });
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+        errors: error.errors,
+      });
     }
     res.status(500).json({ success: false, message: "Error saving complaint" });
   }
 };
 
-// ==================== Get a single complaint by ID ====================
+// ==================== Show single complaint ====================
 module.exports.showComplaint = async (req, res) => {
   try {
     const { id } = req.params;
-
     if (!mongoose.Types.ObjectId.isValid(id)) {
       return res.status(400).json({ success: false, message: "Invalid complaint ID" });
     }
@@ -101,14 +125,22 @@ module.exports.showComplaint = async (req, res) => {
       return res.status(404).json({ success: false, message: "Complaint not found" });
     }
 
-    res.json({ success: true, data: complaint });
+    res.json({
+      success: true,
+      data: {
+        ...complaint.toObject(),
+        userHasUpvoted: complaint.upvotedBy.some(
+          (u) => u.toString() === req.user?.id?.toString()
+        ),
+      },
+    });
   } catch (error) {
     console.error("Error fetching complaint:", error);
     res.status(500).json({ success: false, message: "Error fetching complaint details" });
   }
 };
 
-// ==================== Delete complaint by ID ====================
+// ==================== Delete complaint ====================
 module.exports.deleteComplaint = async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id);
@@ -120,7 +152,6 @@ module.exports.deleteComplaint = async (req, res) => {
       return res.status(403).json({ success: false, message: "Unauthorized to delete this complaint" });
     }
 
-    // Delete media from Cloudinary
     for (let m of complaint.media) {
       await cloudinary.uploader.destroy(m.filename, { resource_type: "auto" });
     }
@@ -133,7 +164,7 @@ module.exports.deleteComplaint = async (req, res) => {
   }
 };
 
-// ==================== Update complaint by ID ====================
+// ==================== Update complaint ====================
 module.exports.updateComplaint = async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id);
@@ -145,7 +176,6 @@ module.exports.updateComplaint = async (req, res) => {
       return res.status(403).json({ success: false, message: "Unauthorized" });
     }
 
-    // Handle retained media
     let retainedMedia = [];
     if (Array.isArray(req.body.existingMedia)) {
       retainedMedia = req.body.existingMedia;
@@ -153,15 +183,17 @@ module.exports.updateComplaint = async (req, res) => {
       retainedMedia = [req.body.existingMedia];
     }
 
-    // Delete media removed by user
-    const mediaToDelete = complaint.media.filter((m) => !retainedMedia.includes(m.url));
+    const mediaToDelete = complaint.media.filter(
+      (m) => !retainedMedia.includes(m.url)
+    );
     for (let m of mediaToDelete) {
       await cloudinary.uploader.destroy(m.filename, { resource_type: "auto" });
     }
 
-    let updatedMedia = complaint.media.filter((m) => retainedMedia.includes(m.url));
+    let updatedMedia = complaint.media.filter((m) =>
+      retainedMedia.includes(m.url)
+    );
 
-    // Handle new uploaded files
     const newFiles = req.files?.media
       ? Array.isArray(req.files.media)
         ? req.files.media
@@ -169,15 +201,28 @@ module.exports.updateComplaint = async (req, res) => {
       : [];
 
     for (let file of newFiles) {
-      const result = await cloudinary.uploader.upload(file.tempFilePath, { resource_type: "auto" });
-      updatedMedia.push({
+      const result = await cloudinary.uploader.upload(file.tempFilePath, {
+        resource_type: "auto",
+      });
+
+      const mediaItem = {
         url: result.secure_url,
         filename: result.public_id,
         type: file.mimetype.startsWith("video") ? "video" : "image",
-      });
+      };
+
+      if (file.mimetype.startsWith("video")) {
+        const thumbnailUrl = cloudinary.url(result.public_id + ".jpg", {
+          resource_type: "video",
+          format: "jpg",
+          transformation: [{ width: 300, height: 200, crop: "fill" }],
+        });
+        mediaItem.thumbnailUrl = thumbnailUrl;
+      }
+
+      updatedMedia.push(mediaItem);
     }
 
-    // Prepare updated data
     const updatedData = {
       title: req.body.title?.trim() || complaint.title,
       description: req.body.description?.trim() || complaint.description,
@@ -188,13 +233,58 @@ module.exports.updateComplaint = async (req, res) => {
       media: updatedMedia,
     };
 
-    const updatedComplaint = await Complaint.findByIdAndUpdate(req.params.id, updatedData, { new: true });
+    const updatedComplaint = await Complaint.findByIdAndUpdate(
+      req.params.id,
+      updatedData,
+      { new: true }
+    );
     res.json({ success: true, updatedComplaint });
   } catch (error) {
     console.error("Update error:", error);
     if (error.name === "ValidationError") {
-      return res.status(400).json({ success: false, message: error.message, errors: error.errors });
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+        errors: error.errors,
+      });
     }
     res.status(500).json({ success: false, message: "Server error occurred" });
+  }
+};
+
+// ==================== Toggle upvote ====================
+module.exports.toggleUpvote = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid complaint ID" });
+    }
+
+    const complaint = await Complaint.findById(id);
+    if (!complaint) {
+      return res.status(404).json({ success: false, message: "Complaint not found" });
+    }
+
+    const alreadyUpvoted = complaint.hasUserUpvoted(userId);
+
+    if (alreadyUpvoted) {
+      complaint.upvotes.pull(userId);
+    } else {
+      complaint.upvotes.push(userId);
+    }
+
+    await complaint.save();
+
+    res.json({
+      success: true,
+      _id: complaint._id,
+      votes: complaint.votes,
+      userHasUpvoted: !alreadyUpvoted,
+    });
+  } catch (error) {
+    console.error("Error toggling upvote:", error);
+    res.status(500).json({ success: false, message: "Server error while toggling upvote" });
   }
 };

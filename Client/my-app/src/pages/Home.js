@@ -1,11 +1,46 @@
-import React from "react";
-import ViewComplaints from "./ViewComplaint/ViewComplaint";
+import React, { useContext, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { ComplaintsContext } from "../ComplaintsContext";
 import Register from "./Register/Register";
+import ComplaintCard from "../Components/ComaplaintCard";
 
 const Home = () => {
+  const { complaints } = useContext(ComplaintsContext);
+  const navigate = useNavigate();
+
+  // Votes state (shared with ViewComplaints)
+  const [votes, setVotes] = useState(() => {
+    try {
+      const savedVotes = localStorage.getItem("complaintVotes");
+      return savedVotes ? JSON.parse(savedVotes) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("complaintVotes", JSON.stringify(votes));
+  }, [votes]);
+
+  const handleUpvote = (id, e) => {
+    e.stopPropagation();
+    setVotes((prev) => {
+      const newVotes = { ...prev };
+      if (newVotes[id]?.upvoted) {
+        newVotes[id] = { count: (newVotes[id].count || 1) - 1, upvoted: false };
+      } else {
+        newVotes[id] = { count: (newVotes[id]?.count || 0) + 1, upvoted: true };
+      }
+      return newVotes;
+    });
+  };
+
+  // Only first 3 complaints for preview
+  const previewComplaints = complaints.slice(0, 3);
+
   return (
     <div className="h-screen overflow-y-scroll snap-y snap-mandatory scroll-smooth">
-      {/* First Section (Hero) */}
+      {/* 🌟 Hero Section */}
       <div
         id="homeSection"
         className="relative w-full h-screen snap-start scroll-mt-20"
@@ -13,7 +48,7 @@ const Home = () => {
         <img
           className="w-full h-full object-cover absolute inset-0 -z-10"
           src="nayaakBg.png"
-          alt="BG"
+          alt="Background"
         />
 
         <div className="absolute inset-0 flex items-center justify-center">
@@ -45,15 +80,38 @@ const Home = () => {
         </div>
       </div>
 
-      {/* Second Section (Complaints) */}
+      {/* 📋 Complaints Preview Section */}
       <div
         id="complaintsSection"
-        className="w-full h-screen bg-gray-50 snap-start scroll-mt-20"
+        className="w-full min-h-screen bg-gray-50 snap-start scroll-mt-20 px-6 py-12"
       >
-        <ViewComplaints />
+        <h2 className="text-2xl font-bold mb-6">📋 Latest Complaints</h2>
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {previewComplaints.map((c) => {
+            const voteInfo = votes[c._id] || { count: 0, upvoted: false };
+            return (
+              <ComplaintCard
+                key={c._id}
+                complaint={c}
+                voteInfo={voteInfo}
+                handleUpvote={handleUpvote}
+              />
+            );
+          })}
+        </div>
+
+        {/* See More */}
+        <div className="mt-8 text-center">
+          <button
+            onClick={() => navigate("/view-complaints")}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition"
+          >
+            See More
+          </button>
+        </div>
       </div>
 
-      {/* Third Section (Register Complaint) */}
+      {/* 📝 Register Section */}
       <div
         id="registerSection"
         className="w-full min-h-screen bg-white snap-start scroll-mt-20"
@@ -65,5 +123,3 @@ const Home = () => {
 };
 
 export default Home;
-
-

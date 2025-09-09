@@ -35,7 +35,6 @@ const complaintSchema = new mongoose.Schema(
       trim: true,
     },
 
-    // Added "Normal" as a valid urgency value (matches front-end if needed)
     urgency: {
       type: String,
       enum: ["Low", "Medium", "High", "Critical", "Normal"],
@@ -57,6 +56,9 @@ const complaintSchema = new mongoose.Schema(
           enum: ["image", "video"],
           required: [true, "Media type is required"],
         },
+        thumbnailUrl: {
+          type: String, // Optional but needed for videos
+        },
       },
     ],
 
@@ -74,9 +76,21 @@ const complaintSchema = new mongoose.Schema(
     ],
   },
   {
-    timestamps: true, // Automatically add createdAt and updatedAt
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
+
+// ==================== Virtual field: votes count ====================
+complaintSchema.virtual("votes").get(function () {
+  return this.upvotes.length;
+});
+
+// ==================== Helper method: check if user has upvoted ====================
+complaintSchema.methods.hasUserUpvoted = function (userId) {
+  return this.upvotes.some((u) => u.toString() === userId.toString());
+};
 
 // ==================== Export Model ====================
 const Complaint = mongoose.model("Complaint", complaintSchema);
