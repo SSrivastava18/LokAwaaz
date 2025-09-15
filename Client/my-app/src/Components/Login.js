@@ -7,18 +7,17 @@ import { useNavigate } from "react-router-dom";
 import "react-toastify/dist/ReactToastify.css";
 
 const Login = ({ setshowLogin }) => {
-  const { apiUrl, setToken, getUserData } = useContext(ComplaintsContext);
+  const { apiUrl, setToken, getUserData, setRole } = useContext(ComplaintsContext);
   const navigate = useNavigate();
   const [page, setPage] = useState("Sign up");
   const [data, setData] = useState({ name: "", email: "", password: "" });
 
-  // ✅ Restore session if token exists
   useEffect(() => {
     const savedToken = localStorage.getItem("token");
     if (savedToken) {
       setToken(savedToken);
       getUserData(savedToken);
-      setshowLogin(false); // auto-close login modal
+      setshowLogin(false);
     }
   }, [setToken, getUserData, setshowLogin]);
 
@@ -38,13 +37,19 @@ const Login = ({ setshowLogin }) => {
 
     try {
       const res = await axios.post(apiUrl + endpoint, data);
+
       if (res.data.success) {
         const token = res.data.token;
         setToken(token);
         localStorage.setItem("token", token);
+
+        setRole("public"); // ✅ Set role to public
+        localStorage.setItem("role", "public");
+
         await getUserData(token);
         setshowLogin(false);
         toast.success("Logged in successfully", { autoClose: 1500 });
+        navigate("/home");
       } else {
         toast.error(res.data.message || "Signup/Login failed", { autoClose: 1500 });
       }
@@ -63,9 +68,14 @@ const Login = ({ setshowLogin }) => {
         const token = res.data.token;
         setToken(token);
         localStorage.setItem("token", token);
+
+        setRole("public"); // ✅ Set role to public
+        localStorage.setItem("role", "public");
+
         await getUserData(token);
         setshowLogin(false);
         toast.success("Logged in with Google!", { autoClose: 1500 });
+        navigate("/home");
       } else {
         toast.error("Google login failed.", { autoClose: 1500 });
       }
@@ -83,7 +93,6 @@ const Login = ({ setshowLogin }) => {
     <GoogleOAuthProvider clientId="189976483636-fegkboe4qc5vu81flba0458h2pei5ltf.apps.googleusercontent.com">
       <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 px-4">
         <div className="relative w-full max-w-md bg-gray-900 rounded-2xl shadow-lg p-6 md:p-8">
-          {/* Close Button */}
           <button
             onClick={() => setshowLogin(false)}
             className="absolute top-3 right-3 text-gray-400 hover:text-white text-xl"
@@ -91,12 +100,8 @@ const Login = ({ setshowLogin }) => {
             ✕
           </button>
 
-          {/* Title */}
-          <h2 className="text-2xl font-bold text-center text-white mb-6">
-            {page}
-          </h2>
+          <h2 className="text-2xl font-bold text-center text-white mb-6">{page}</h2>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {page === "Sign up" && (
               <input
@@ -137,12 +142,10 @@ const Login = ({ setshowLogin }) => {
               {page === "Sign up" ? "Create Account" : "Login now"}
             </button>
 
-            {/* Google Login */}
             <div className="flex justify-center mt-4">
               <GoogleLogin onSuccess={googleSuccess} onError={googleFailure} />
             </div>
 
-            {/* Terms Checkbox */}
             <div className="flex items-center space-x-2 text-sm text-gray-300 mt-4">
               <input type="checkbox" required className="w-4 h-4" />
               <p>
@@ -160,7 +163,6 @@ const Login = ({ setshowLogin }) => {
               </p>
             </div>
 
-            {/* Toggle SignUp/Login */}
             <p className="text-center text-gray-400 mt-6">
               {page === "Sign up" ? (
                 <>

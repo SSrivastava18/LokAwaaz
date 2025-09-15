@@ -6,45 +6,48 @@ import ViewComplaint from "./pages/ViewComplaint/ViewComplaint";
 import Home from "./pages/Home";
 import Navbar from "./Components/Navbar";
 import ComplaintDetail from "./pages/ComplaintDetail";
-import Login from "./Components/Login"; // ✅ import Login modal
-import { ToastContainer } from "react-toastify"; // ✅ import Toastify container
-import "react-toastify/dist/ReactToastify.css"; // ✅ import Toastify styles
+import Login from "./Components/Login";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
-// ✅ Import Government Dashboard
 import GovDashboard from "./pages/GovDashboard";
+import GovLoginPage from "./Components/GovtLoginPage"; 
+import RoleSelectionPage from "./pages/RoleSelectionPage"; 
 
 function App() {
-  const [showLogin, setShowLogin] = useState(false); 
-  const location = useLocation(); // ✅ detect current path
+  const [showLogin, setShowLogin] = useState(false);
+  const location = useLocation();
 
-  const hideNavbar = location.pathname === "/gov-dashboard"; // ✅ condition
+  // ✅ Hide navbar on government and role selection pages
+  const hideNavbar = location.pathname.startsWith("/gov-") || location.pathname === "/";
 
   return (
     <ComplaintsProvider>
-      {/* ✅ Only show Navbar if not on gov dashboard */}
       {!hideNavbar && (
         <div style={{ position: "fixed", top: 0, width: "100%", zIndex: 1000 }}>
           <Navbar setshowLogin={setShowLogin} />
         </div>
       )}
 
-      {/* Main Routes */}
       <div style={{ paddingTop: hideNavbar ? "0px" : "64px" }}>
         <Routes>
-          <Route path="/" element={<Home />} />
+          {/* Role selection landing page */}
+          <Route path="/" element={<RoleSelectionPage />} />
+
+          {/* Public Routes */}
+          <Route path="/home" element={<Home />} />
           <Route path="/register" element={<Register />} />
           <Route path="/view-complaints" element={<ViewComplaint />} />
           <Route path="/complaint/:id" element={<ComplaintDetail />} />
 
-          {/* ✅ Government side (no Navbar here) */}
+          {/* Government Portal */}
+          <Route path="/gov-login" element={<GovLoginPage />} />
           <Route path="/gov-dashboard" element={<GovDashboard />} />
         </Routes>
       </div>
 
-      {/* Show login modal if state is true */}
       {showLogin && <Login setshowLogin={setShowLogin} />}
 
-      {/* ✅ Toastify container for global toasts */}
       <ToastContainer position="top-right" autoClose={2000} hideProgressBar={false} />
     </ComplaintsProvider>
   );

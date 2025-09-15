@@ -12,16 +12,16 @@ const app = express();
 
 // ==================== Cloudinary Configuration ====================
 cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET,
+  cloud_name: process.env.CLOUDNAME,
+  api_key: process.env.APIKEY,
+  api_secret: process.env.APISECRET,
 });
 
 // ==================== Routes ====================
 const userRoute = require("./routes/userRoute.js");
 const complaintRoute = require("./routes/complaintRoute.js");
 const commentRoute = require("./routes/commentRoute.js");
-const governmentRoute = require("./routes/governmentRoute.js"); // 🔹 NEW
+const governmentRoute = require("./routes/governmentRoute.js"); // 🔹 Gov Routes
 
 // ==================== Environment Variables ====================
 const dbUrl = process.env.ATLASDBURL || "mongodb://localhost:27017/staystory";
@@ -39,7 +39,7 @@ app.use(
 
 app.use(cors());
 
-// Remove COOP/COEP headers in development
+// Remove COOP/COEP headers in development (for media handling in dev)
 if (process.env.NODE_ENV !== "production") {
   app.use((req, res, next) => {
     res.removeHeader("Cross-Origin-Opener-Policy");
@@ -124,7 +124,7 @@ app.post("/api/upload", async (req, res) => {
 app.use("/user", userRoute);
 app.use("/complaints", complaintRoute);
 app.use("/comments", commentRoute);
-app.use("/api/government", governmentRoute); // 🔹 NEW (Gov routes)
+app.use("/api/government", governmentRoute); // 🔹 Gov routes (OTP + complaints)
 
 // ==================== Health Check Endpoint ====================
 app.get("/", (req, res) => {

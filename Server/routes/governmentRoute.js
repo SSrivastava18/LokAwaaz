@@ -5,10 +5,18 @@ const router = express.Router();
 const govCtrl = require("../controllers/governmentController");
 const { isGovernment } = require("../middleware");
 
-// ✅ Get all complaints (gov only)
+// ==================== Government Auth Routes ====================
+// Request OTP (no auth needed)
+router.post("/request-otp", govCtrl.requestOtp);
+
+// Verify OTP (no auth needed, returns JWT)
+router.post("/verify-otp", govCtrl.verifyOtp);
+
+// ==================== Complaint Routes (Gov only) ====================
+// Get all complaints
 router.get("/complaints", isGovernment, govCtrl.getAllComplaints);
 
-// ✅ Update complaint status (gov only)
+// Update complaint status
 router.put("/complaints/:id/status", isGovernment, govCtrl.updateStatus);
 
 module.exports = router;
