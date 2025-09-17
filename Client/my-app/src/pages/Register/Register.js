@@ -1,6 +1,7 @@
 import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { ComplaintsContext } from "../../ComplaintsContext";
+import { toast } from "react-toastify";
 import "./Register.css";
 
 export default function Register() {
@@ -17,7 +18,7 @@ export default function Register() {
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     const filePreviews = files.map((file) => ({
-      file, // Store original File object
+      file,
       url: URL.createObjectURL(file),
       type: file.type.startsWith("video") ? "video" : "image",
       name: file.name,
@@ -29,9 +30,43 @@ export default function Register() {
     setPreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("❌ Geolocation is not supported by your browser.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+          );
+          const data = await res.json();
+
+          const address =
+            data.display_name || `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+
+          setLocation(address);
+          toast.success("📍 Location fetched successfully!");
+        } catch (err) {
+          console.error("Reverse geocoding failed:", err);
+          setLocation(`${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+          toast.info("📍 Location coordinates fetched (no address).");
+        }
+      },
+      (error) => {
+        console.error("Error getting location:", error);
+        toast.error("❌ Unable to fetch location. Please allow location access.");
+      }
+    );
+  };
+
   const handleSubmit = async () => {
     if (!title || !location) {
-      alert("Please enter at least a title and location");
+      toast.warning("⚠️ Please enter at least a title and location");
       return;
     }
 
@@ -43,7 +78,7 @@ export default function Register() {
     formData.append("contact", contact);
 
     previews.forEach((fileObj) => {
-      formData.append("media", fileObj.file); // Append each file
+      formData.append("media", fileObj.file);
     });
 
     try {
@@ -58,25 +93,21 @@ export default function Register() {
       const data = await res.json();
 
       if (data.success) {
-        alert("✅ Complaint registered successfully");
-
-        // Update global context with the new complaint
+        toast.success("Complaint registered successfully!");
         setComplaints((prev) => [data.complaint, ...prev]);
-
         navigate("/view-complaints");
       } else {
-        alert("❌ Failed to register complaint: " + data.message);
+        toast.error("❌ Failed to register complaint: " + data.message);
       }
     } catch (err) {
       console.error("❌ Error submitting complaint:", err);
-      alert("An error occurred while submitting complaint.");
+      toast.error("An error occurred while submitting complaint.");
     }
   };
 
   return (
     <div className="container">
       <div className="main">
-        {/* Complaint Form */}
         <div className="form-card">
           <h2>Register Your Complaint</h2>
 
@@ -121,7 +152,11 @@ export default function Register() {
               value={location}
               onChange={(e) => setLocation(e.target.value)}
             />
-            <button className="location-btn" type="button">
+            <button
+              className="location-btn"
+              type="button"
+              onClick={handleUseMyLocation}
+            >
               Use My Location
             </button>
           </label>
@@ -146,7 +181,6 @@ export default function Register() {
             />
           </label>
 
-          {/* Preview Thumbnails */}
           <div className="upload-preview">
             {previews.map((file, index) => (
               <div key={index} className="preview-item">
@@ -171,7 +205,7 @@ export default function Register() {
           </button>
         </div>
 
-        {/* Tips Section */}
+       
         <div className="tips-card">
           <h3>Tips for registering complaint</h3>
           <ul>

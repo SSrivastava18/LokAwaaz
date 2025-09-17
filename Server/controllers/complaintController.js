@@ -34,10 +34,10 @@ module.exports.getComplaintData = async (req, res) => {
             thumbnailUrl: m.thumbnailUrl || null,
           }))
         : [],
-      votes: c.votes || 0,
-      userHasUpvoted: c.upvotedBy?.some(
-        (u) => u.toString() === req.user?.id?.toString()
-      ),
+      votes: c.upvotes?.length || 0,
+      userHasUpvoted: req.user
+        ? c.upvotes?.some((u) => u.toString() === req.user.id.toString())
+        : false,
     }));
 
     res.json({ success: true, data: normalizedComplaints });
@@ -69,7 +69,6 @@ module.exports.addComplaint = async (req, res) => {
       };
 
       if (file.mimetype.startsWith("video")) {
-        // Generate thumbnail URL
         const thumbnailUrl = cloudinary.url(result.public_id + ".jpg", {
           resource_type: "video",
           format: "jpg",
@@ -129,9 +128,12 @@ module.exports.showComplaint = async (req, res) => {
       success: true,
       data: {
         ...complaint.toObject(),
-        userHasUpvoted: complaint.upvotedBy.some(
-          (u) => u.toString() === req.user?.id?.toString()
-        ),
+        votes: complaint.upvotes.length,
+        userHasUpvoted: req.user
+          ? complaint.upvotes.some(
+              (u) => u.toString() === req.user.id.toString()
+            )
+          : false,
       },
     });
   } catch (error) {
@@ -280,7 +282,7 @@ module.exports.toggleUpvote = async (req, res) => {
     res.json({
       success: true,
       _id: complaint._id,
-      votes: complaint.votes,
+      votes: complaint.upvotes.length,
       userHasUpvoted: !alreadyUpvoted,
     });
   } catch (error) {

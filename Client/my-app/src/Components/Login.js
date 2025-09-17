@@ -43,7 +43,7 @@ const Login = ({ setshowLogin }) => {
         setToken(token);
         localStorage.setItem("token", token);
 
-        setRole("public"); // ✅ Set role to public
+        setRole("public"); 
         localStorage.setItem("role", "public");
 
         await getUserData(token);
@@ -69,7 +69,7 @@ const Login = ({ setshowLogin }) => {
         setToken(token);
         localStorage.setItem("token", token);
 
-        setRole("public"); // ✅ Set role to public
+        setRole("public"); 
         localStorage.setItem("role", "public");
 
         await getUserData(token);

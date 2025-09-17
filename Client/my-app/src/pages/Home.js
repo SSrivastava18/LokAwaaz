@@ -1,42 +1,83 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ComplaintsContext } from "../ComplaintsContext";
 import Register from "./Register/Register";
 import ComplaintCard from "../Components/ComaplaintCard";
+import { toast } from "react-toastify";
 
 const Home = () => {
-  const { complaints } = useContext(ComplaintsContext);
+  const { complaints, setComplaints, apiUrl } = useContext(ComplaintsContext);
   const navigate = useNavigate();
 
-  // Votes state (shared with ViewComplaints)
-  const [votes, setVotes] = useState(() => {
-    try {
-      const savedVotes = localStorage.getItem("complaintVotes");
-      return savedVotes ? JSON.parse(savedVotes) : {};
-    } catch {
-      return {};
-    }
-  });
+  const [upvoteLoading, setUpvoteLoading] = useState({});
 
-  useEffect(() => {
-    localStorage.setItem("complaintVotes", JSON.stringify(votes));
-  }, [votes]);
-
-  const handleUpvote = (id, e) => {
+  // Handle upvote
+  const handleUpvote = async (id, e) => {
     e.stopPropagation();
-    setVotes((prev) => {
-      const newVotes = { ...prev };
-      if (newVotes[id]?.upvoted) {
-        newVotes[id] = { count: (newVotes[id].count || 1) - 1, upvoted: false };
-      } else {
-        newVotes[id] = { count: (newVotes[id]?.count || 0) + 1, upvoted: true };
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      toast.warning("Please login first to upvote complaints.");
+      return;
+    }
+
+    setUpvoteLoading((prev) => ({ ...prev, [id]: true }));
+    try {
+      const response = await fetch(`${apiUrl}/complaints/${id}/upvote`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (!data.success) {
+        toast.error(data.message || "Something went wrong");
+        return;
       }
-      return newVotes;
-    });
+
+      setComplaints((prev) =>
+        prev.map((c) =>
+          c._id === id
+            ? { ...c, votes: data.votes, userHasUpvoted: data.userHasUpvoted }
+            : c
+        )
+      );
+
+      toast[data.userHasUpvoted ? "success" : "info"](
+        data.userHasUpvoted ? "Upvoted!" : "Upvote removed."
+      );
+    } catch (error) {
+      console.error("Upvote error:", error);
+      toast.error("Error while toggling upvote.");
+    } finally {
+      setUpvoteLoading((prev) => ({ ...prev, [id]: false }));
+    }
   };
 
-  // Only first 3 complaints for preview
+  // Preview only first 3 complaints
   const previewComplaints = complaints.slice(0, 3);
+
+  // ✅ Handle See More navigation
+  const handleSeeMore = () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      toast.warning("Please login first to view complaints.");
+      return; // 🚫 stop navigation
+    }
+    navigate("/view-complaints");
+  };
+
+  // ✅ Handle card click
+  const handleCardClick = (complaint) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      toast.warning("Please login first to view complaint details.");
+      return; // 🚫 block navigation
+    }
+    navigate(`/complaint/${complaint._id}`, { state: complaint });
+  };
 
   return (
     <div className="h-screen overflow-y-scroll snap-y snap-mandatory scroll-smooth">
@@ -53,7 +94,6 @@ const Home = () => {
 
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="flex flex-col sm:flex-row gap-4 mt-80">
-            {/* Scroll to Register Section */}
             <button
               className="bg-blue-950 px-6 py-3 text-white text-lg font-semibold rounded-lg shadow-lg hover:bg-blue-900"
               onClick={() =>
@@ -64,8 +104,6 @@ const Home = () => {
             >
               Report an Issue
             </button>
-
-            {/* Scroll to Complaints Section */}
             <button
               className="bg-gray-200 px-6 py-3 text-blue-950 text-lg font-semibold rounded-lg shadow-lg hover:bg-gray-300"
               onClick={() =>
@@ -88,14 +126,19 @@ const Home = () => {
         <h2 className="text-2xl font-bold mb-6">📋 Latest Complaints</h2>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {previewComplaints.map((c) => {
-            const voteInfo = votes[c._id] || { count: 0, upvoted: false };
+            const voteInfo = {
+              count: c.votes,
+              upvoted: c.userHasUpvoted || false,
+              loading: upvoteLoading[c._id] || false,
+            };
             return (
-              <ComplaintCard
-                key={c._id}
-                complaint={c}
-                voteInfo={voteInfo}
-                handleUpvote={handleUpvote}
-              />
+              <div key={c._id} onClick={() => handleCardClick(c)}>
+                <ComplaintCard
+                  complaint={c}
+                  voteInfo={voteInfo}
+                  handleUpvote={handleUpvote}
+                />
+              </div>
             );
           })}
         </div>
@@ -103,7 +146,7 @@ const Home = () => {
         {/* See More */}
         <div className="mt-8 text-center">
           <button
-            onClick={() => navigate("/view-complaints")}
+            onClick={handleSeeMore}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition"
           >
             See More

@@ -33,7 +33,6 @@ export default function GovDashboard() {
       const allComplaints = res.data.data;
       setComplaints(allComplaints);
 
-      // Calculate the counts
       const pendingCount = allComplaints.filter(c => c.status === "Pending").length;
       const inProgressCount = allComplaints.filter(c => c.status === "Work in Progress").length;
       const resolvedCount = allComplaints.filter(c => c.status === "Resolved").length;
@@ -76,7 +75,6 @@ export default function GovDashboard() {
 
       {message && <p style={{ color: "red", marginBottom: "16px" }}>{message}</p>}
 
-      {/* Complaint Counts Section */}
       <div
         style={{
           display: "flex",

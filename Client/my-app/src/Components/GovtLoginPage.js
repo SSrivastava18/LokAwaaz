@@ -16,7 +16,6 @@ export default function GovLoginPage() {
 
     const trimmedEmail = email.trim().toLowerCase();
 
-    // Frontend email check for @gov.in
     if (!trimmedEmail.endsWith("@gov.in")) {
       setMessage("Please use a valid government email ending with @gov.in");
       return;
@@ -30,7 +29,6 @@ export default function GovLoginPage() {
       if (res.data.success) {
         setOtpSent(true);
 
-        // If backend logs OTP in dev, show a hint for dev testing
         let devMsg = res.data.message;
         if (process.env.NODE_ENV !== "production") {
           devMsg += " (Check server console for OTP in development)";

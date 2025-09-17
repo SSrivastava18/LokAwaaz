@@ -67,7 +67,7 @@ exports.requestOtp = async (req, res) => {
     let { email } = req.body;
     email = email.trim().toLowerCase(); // trim + lowercase
 
-    // ✅ Allow any email ending with @gov.in
+    // Allow any email ending with @gov.in
     if (!email.endsWith("@gov.in")) {
       return res.status(403).json({ success: false, message: "Only government emails allowed" });
     }

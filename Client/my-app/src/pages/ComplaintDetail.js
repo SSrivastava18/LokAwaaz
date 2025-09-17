@@ -1,21 +1,31 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ComplaintsContext } from "../ComplaintsContext";
+import { toast } from "react-toastify";
 
 export default function ComplaintDetail() {
+  const { token } = useContext(ComplaintsContext);
   const { state: complaint } = useLocation();
   const navigate = useNavigate();
-  const media = complaint.media || [];
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // 🔹 Comment state
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState("");
 
-  const API_BASE = "http://localhost:5000"; // 👈 Change here if backend URL differs
+  const media = complaint?.media || [];
+  const API_BASE = "http://localhost:5000"; 
 
-  // Fetch comments from backend
   useEffect(() => {
+    if (!token) {
+      toast.warning("Please login first to view complaint details.");
+      navigate("/view-complaints");
+    }
+  }, [token, navigate]);
+
+  useEffect(() => {
+    if (!complaint?._id) return;
+
     const fetchComments = async () => {
       try {
         const res = await fetch(`${API_BASE}/comments/${complaint._id}`);
@@ -29,16 +39,18 @@ export default function ComplaintDetail() {
       }
     };
     fetchComments();
-  }, [complaint._id]);
+  }, [complaint?._id]);
 
-  // Handle adding comment
   const handleAddComment = async () => {
     if (newComment.trim() === "") return;
     try {
       const res = await fetch(`${API_BASE}/comments/${complaint._id}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: newComment, author: "User" }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`, 
+        },
+        body: JSON.stringify({ text: newComment }),
       });
 
       if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
@@ -63,9 +75,16 @@ export default function ComplaintDetail() {
     setCurrentIndex((prev) => (prev === media.length - 1 ? 0 : prev + 1));
   };
 
+  if (!complaint) {
+    return (
+      <div className="max-w-6xl mx-auto p-6 text-center text-red-500">
+        Complaint not found.
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl mx-auto p-6">
-      {/* Back Button */}
       <button
         onClick={() => navigate(-1)}
         className="px-4 py-2 mb-6 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full shadow flex items-center gap-2 transition"
@@ -73,14 +92,11 @@ export default function ComplaintDetail() {
         ← Back
       </button>
 
-      {/* Title */}
       <h1 className="text-3xl font-bold text-gray-800 mb-6">
         {complaint.title}
       </h1>
 
-      {/* Media + Info in Two Columns */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Media Slider */}
         {media.length > 0 ? (
           <div className="relative w-full h-96 flex items-center justify-center bg-white rounded-lg overflow-hidden">
             {media[currentIndex].type === "image" ? (
@@ -97,7 +113,6 @@ export default function ComplaintDetail() {
               />
             )}
 
-            {/* Left Button */}
             <button
               onClick={handlePrev}
               className="absolute left-2 bg-white/70 hover:bg-white text-gray-800 p-2 rounded-full shadow"
@@ -105,7 +120,6 @@ export default function ComplaintDetail() {
               <ChevronLeft className="w-6 h-6" />
             </button>
 
-            {/* Right Button */}
             <button
               onClick={handleNext}
               className="absolute right-2 bg-white/70 hover:bg-white text-gray-800 p-2 rounded-full shadow"
@@ -113,7 +127,6 @@ export default function ComplaintDetail() {
               <ChevronRight className="w-6 h-6" />
             </button>
 
-            {/* Dots Indicator */}
             <div className="absolute bottom-3 flex gap-2">
               {media.map((_, i) => (
                 <button
@@ -154,14 +167,17 @@ export default function ComplaintDetail() {
             <span className="font-semibold">Location:</span>{" "}
             {complaint.location}
           </p>
-          <p>
+          <p className="mb-2">
             <span className="font-semibold">Contact Info:</span>{" "}
             {complaint.contactInfo || "Not provided"}
+          </p>
+          <p>
+            <span className="font-semibold">Posted by:</span>{" "}
+            {complaint.user?.name || complaint.user?.email || "Anonymous"}
           </p>
         </div>
       </div>
 
-      {/* Description */}
       <div className="bg-blue-50 p-4 rounded-xl shadow mb-8">
         <p>
           <span className="font-semibold">Description:</span>{" "}
@@ -169,11 +185,9 @@ export default function ComplaintDetail() {
         </p>
       </div>
 
-      {/* 💬 Comments Section */}
       <div className="bg-white p-6 rounded-xl shadow">
         <h2 className="text-xl font-bold mb-4">💬 Comments</h2>
 
-        {/* Comment List */}
         {comments.length === 0 ? (
           <p className="text-gray-500 italic">No comments yet. Be the first!</p>
         ) : (
@@ -185,6 +199,7 @@ export default function ComplaintDetail() {
               >
                 <p className="text-gray-800">{c.text}</p>
                 <p className="text-xs text-gray-500 mt-1">
+                  Posted by: {c.author?.name || c.author?.email || "Anonymous"} •{" "}
                   {new Date(c.createdAt).toLocaleString()}
                 </p>
               </li>
@@ -192,7 +207,6 @@ export default function ComplaintDetail() {
           </ul>
         )}
 
-        {/* Add Comment */}
         <div className="flex gap-2">
           <input
             type="text"

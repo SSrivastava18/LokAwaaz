@@ -16,34 +16,54 @@ const Nav = ({ setshowLogin }) => {
     }
   };
 
-  const handleHomeClick = () => {
-    if (role === "public") {
+ const handleHomeClick = () => {
+  if (role === "public") {
+    if (location.pathname === "/home") {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  setTimeout(() => {
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, 300);
+} else {
+  navigate("/home");
+  setTimeout(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, 300);
+}
+
+  } else if (role === "govt") {
+    navigate("/gov-dashboard");
+  } else {
+    if (location.pathname === "/home") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else {
       navigate("/home");
       setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 100);
-    } else if (role === "govt") {
-      navigate("/gov-dashboard");
-    } else {
-      navigate("/home");
     }
-    setOpen(false);
-  };
+  }
+  setOpen(false);
+};
 
   const handleRegisterComplaintClick = () => {
-    if (role === "public") {
-      if (token) {
-        navigate("/home");
-        setTimeout(() => scrollToSection("registerSection"), 300);
-      } else {
-        toast.warning("⚠ Please login first to register a complaint.");
-        setshowLogin(true);
-      }
-    } else if (role === "govt") {
-      navigate("/gov-login");
-    } else {
+  if (role === "public") {
+    if (token) {
       navigate("/home");
+      setTimeout(() => scrollToSection("registerSection"), 300);
+    } else {
+      toast.warning("⚠ Please login first to register a complaint.");
+      setshowLogin(true); 
     }
-    setOpen(false);
-  };
+  } else if (role === "govt") {
+    navigate("/gov-login");
+  } else {
+    toast.warning("⚠ Please login first to register a complaint.");
+    setshowLogin(true); 
+  }
+  setOpen(false);
+};
+
 
   return (
     <nav className="w-full bg-sky-800 h-20 flex items-center justify-between px-5 text-amber-50 relative">

@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema(
     googleId: {
       type: String,
       unique: true,   // Google IDs must be unique
-      sparse: true,   // ✅ allows multiple null values
+      sparse: true,   // allows multiple null values
     },
   },
   { timestamps: true }

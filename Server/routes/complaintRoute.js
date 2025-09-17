@@ -13,7 +13,7 @@ router.put("/:id", isverified, complaintController.updateComplaint);
 
 router.delete("/:id", isverified, complaintController.deleteComplaint);
 
+// ✅ Toggle upvote route
+router.post("/:id/upvote", isverified, complaintController.toggleUpvote);
+
 module.exports = router;
-
-
-

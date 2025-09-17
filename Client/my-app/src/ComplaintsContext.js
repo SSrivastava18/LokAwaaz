@@ -6,18 +6,25 @@ export const ComplaintsContext = createContext();
 export const ComplaintsProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem("token") || "");
-  const [role, setRole] = useState(localStorage.getItem("role") || null); // ✅ Role state
+  const [role, setRole] = useState(localStorage.getItem("role") || null); 
 
   // API URL (from env or fallback)
   const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
   // Global state for complaints
-  const [complaints, setComplaints] = useState([]);
+  const [complaints, setComplaints] = useState(() => {
+    try {
+      const saved = localStorage.getItem("complaints");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Logout function
   const logout = () => {
     localStorage.removeItem("token");
-    localStorage.removeItem("role"); // ✅ Clear role
+    localStorage.removeItem("role"); 
     setToken("");
     setRole(null);
     setUser(null);
@@ -91,7 +98,7 @@ export const ComplaintsProvider = ({ children }) => {
     token,
     setToken,
     role,
-    setRole, // ✅ Expose role setter
+    setRole, 
     user,
     setUser,
     getUserData,

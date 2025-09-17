@@ -18,7 +18,6 @@ function App() {
   const [showLogin, setShowLogin] = useState(false);
   const location = useLocation();
 
-  // ✅ Hide navbar on government and role selection pages
   const hideNavbar = location.pathname.startsWith("/gov-") || location.pathname === "/";
 
   return (
