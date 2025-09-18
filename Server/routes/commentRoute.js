@@ -7,16 +7,20 @@ const {
   updateComment,
 } = require("../controllers/commentController");
 
-// GET all comments for a complaint
+const { isverified } = require("../middleware"); // ✅ import auth middleware
+
+// ==================== Get comments for a complaint ====================
+// You can decide if comments should be public (no auth) or private (auth required).
+// Here I made GET public, but POST/PUT/DELETE require login.
 router.get("/:complaintId", getComments);
 
-// POST add a new comment
-router.post("/:complaintId", addComment);
+// ==================== Add a new comment ====================
+router.post("/:complaintId", isverified, addComment);
 
-// DELETE a comment
-router.delete("/:id", deleteComment);
+// ==================== Delete a comment ====================
+router.delete("/:id", isverified, deleteComment);
 
-// PUT update a comment
-router.put("/:id", updateComment);
+// ==================== Update a comment ====================
+router.put("/:id", isverified, updateComment);
 
 module.exports = router;

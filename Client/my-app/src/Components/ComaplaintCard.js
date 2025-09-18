@@ -1,8 +1,7 @@
-// src/components/ComplaintCard.js
 import React from "react";
 import { ArrowUp } from "lucide-react";
 
-const ComplaintCard = ({ complaint, voteInfo, handleUpvote }) => {
+const ComplaintCard = ({ complaint, voteInfo, handleUpvote, onClick }) => {
   const mediaUrl =
     complaint.media && complaint.media.length > 0
       ? complaint.media[0].type === "image"
@@ -13,7 +12,10 @@ const ComplaintCard = ({ complaint, voteInfo, handleUpvote }) => {
       : "/default-placeholder.png";
 
   return (
-    <div className="cursor-pointer bg-white shadow-lg rounded-2xl overflow-hidden hover:shadow-xl transition flex flex-col">
+    <div
+      onClick={onClick} // ✅ Navigate on card click
+      className="cursor-pointer bg-white shadow-lg rounded-2xl overflow-hidden hover:shadow-xl transition flex flex-col"
+    >
       <img
         src={mediaUrl}
         alt="complaint media"
@@ -42,7 +44,10 @@ const ComplaintCard = ({ complaint, voteInfo, handleUpvote }) => {
         </div>
 
         <button
-          onClick={(e) => handleUpvote(complaint._id, e)}
+          onClick={(e) => {
+            e.stopPropagation(); // ✅ Prevent navigation when clicking upvote
+            handleUpvote(complaint._id, e);
+          }}
           className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition w-fit ${
             voteInfo.upvoted
               ? "bg-blue-100 text-blue-700"

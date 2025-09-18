@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const User = require("./models/userModel"); // 🔹 import User model
 
 const jwtSecret = process.env.JWTSECRET;
 
@@ -8,7 +9,7 @@ if (!jwtSecret) {
 }
 
 // ==================== Verify JWT Token ====================
-module.exports.isverified = (req, res, next) => {
+module.exports.isverified = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -30,15 +31,23 @@ module.exports.isverified = (req, res, next) => {
       });
     }
 
-    // Keep existing behaviour (public side will work same as before)
+    // 🔹 Fetch user details from DB (so we get name + email)
+    const user = await User.findById(decoded.id).select("name email role");
+    if (!user) {
+      return res.status(403).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
     req.user = {
-      id: decoded.id,
-      name: decoded.name || "User",
-      email: decoded.email || null,
-      role: decoded.role || "citizen", // 🔹 will default to citizen if not provided
+      id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: user.role || "citizen",
     };
 
-    console.log(`✅ Token verified for user: ${decoded.id}`);
+    console.log(`✅ Token verified for user: ${user.name} (${user._id})`);
     next();
   } catch (error) {
     console.error("❌ Token verification error:", error.message);
@@ -68,4 +77,3 @@ module.exports.isGovernment = (req, res, next) => {
 
   next();
 };
-

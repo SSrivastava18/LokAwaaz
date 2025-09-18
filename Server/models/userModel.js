@@ -10,17 +10,17 @@ const userSchema = new mongoose.Schema(
     email: {
       type: String,
       required: true,
-      unique: true, // ensure unique emails
+      unique: true, 
       lowercase: true,
       trim: true,
     },
     password: {
-      type: String, // empty for Google accounts
+      type: String, 
     },
     googleId: {
       type: String,
-      unique: true,   // Google IDs must be unique
-      sparse: true,   // allows multiple null values
+      unique: true,   
+      sparse: true,   
     },
   },
   { timestamps: true }

@@ -26,7 +26,7 @@ exports.getComments = async (req, res) => {
 exports.addComment = async (req, res) => {
   try {
     const { complaintId } = req.params;
-    const { text, author } = req.body;
+    const { text } = req.body;
 
     if (!text || text.trim() === "") {
       return res.status(400).json({
@@ -35,10 +35,14 @@ exports.addComment = async (req, res) => {
       });
     }
 
+    // 🔹 If logged in, use req.user.name/email, else fallback to "Anonymous"
+    const author =
+      req.user?.name || req.user?.email || "Anonymous";
+
     const comment = await Comment.create({
       complaintId,
       text: text.trim(),
-      author: author && author.trim() !== "" ? author.trim() : "Anonymous",
+      author,
     });
 
     return res.status(201).json({

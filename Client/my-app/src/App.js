@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { ComplaintsProvider } from "./ComplaintsContext";
 import Register from "./pages/Register/Register";
@@ -7,18 +7,25 @@ import Home from "./pages/Home";
 import Navbar from "./Components/Navbar";
 import ComplaintDetail from "./pages/ComplaintDetail";
 import Login from "./Components/Login";
+import MyComplaints from "./pages/MyComplaints";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import GovDashboard from "./pages/GovDashboard";
-import GovLoginPage from "./Components/GovtLoginPage"; 
-import RoleSelectionPage from "./pages/RoleSelectionPage"; 
+import GovLoginPage from "./Components/GovtLoginPage";
+import RoleSelectionPage from "./pages/RoleSelectionPage";
 
 function App() {
   const [showLogin, setShowLogin] = useState(false);
   const location = useLocation();
 
+  // Hide navbar for role selection or government routes
   const hideNavbar = location.pathname.startsWith("/gov-") || location.pathname === "/";
+
+  // Auto-close login modal on route change
+  useEffect(() => {
+    setShowLogin(false);
+  }, [location.pathname]);
 
   return (
     <ComplaintsProvider>
@@ -36,12 +43,19 @@ function App() {
           {/* Public Routes */}
           <Route path="/home" element={<Home />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/edit-complaint/:id" element={<Register />} /> {/* ✅ Added */}
           <Route path="/view-complaints" element={<ViewComplaint />} />
           <Route path="/complaint/:id" element={<ComplaintDetail />} />
+
+          {/* User Routes */}
+          <Route path="/my-complaints" element={<MyComplaints />} />
 
           {/* Government Portal */}
           <Route path="/gov-login" element={<GovLoginPage />} />
           <Route path="/gov-dashboard" element={<GovDashboard />} />
+
+          {/* 404 Fallback */}
+          <Route path="*" element={<p className="text-center p-6">404: Page not found</p>} />
         </Routes>
       </div>
 
