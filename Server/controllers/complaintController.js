@@ -2,13 +2,14 @@ const mongoose = require("mongoose");
 const Complaint = require("../models/complaintModel");
 const cloudinary = require("cloudinary").v2;
 
+// ==================== Cloudinary Config ====================
 cloudinary.config({
   cloud_name: process.env.CLOUDNAME,
   api_key: process.env.APIKEY,
   api_secret: process.env.APISECRET,
 });
 
-// ==================== Helper to normalize complaint data ====================
+// ==================== Helper to normalize complaint ====================
 const normalizeComplaint = (complaint, userId) => ({
   _id: complaint._id,
   title: complaint.title,
@@ -41,15 +42,19 @@ module.exports.getComplaintData = async (req, res) => {
       .populate("user", "name")
       .lean();
 
-    const normalized = complaints.map((c) => normalizeComplaint(c, req.user?.id));
+    const normalized = complaints.map((c) =>
+      normalizeComplaint(c, req.user?.id)
+    );
     res.json({ success: true, data: normalized });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: "Error fetching complaints" });
+    res
+      .status(500)
+      .json({ success: false, message: "Error fetching complaints" });
   }
 };
 
-// ==================== Get complaints of logged-in user ====================
+// ==================== Get user complaints ====================
 module.exports.getUserComplaints = async (req, res) => {
   try {
     const complaints = await Complaint.find({ user: req.user.id })
@@ -57,19 +62,26 @@ module.exports.getUserComplaints = async (req, res) => {
       .populate("user", "name")
       .lean();
 
-    const normalized = complaints.map((c) => normalizeComplaint(c, req.user.id));
+    const normalized = complaints.map((c) =>
+      normalizeComplaint(c, req.user.id)
+    );
     res.json({ success: true, data: normalized });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: "Failed to fetch complaints" });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch complaints" });
   }
 };
 
-// ==================== Add a new complaint ====================
+// ==================== Add new complaint ====================
 module.exports.addComplaint = async (req, res) => {
   try {
     if (!req.body.title?.trim() || !req.body.location?.trim()) {
-      return res.status(400).json({ success: false, message: "Title and location are required" });
+      return res.status(400).json({
+        success: false,
+        message: "Title and location are required",
+      });
     }
 
     const files = req.files?.media
@@ -79,16 +91,29 @@ module.exports.addComplaint = async (req, res) => {
       : [];
 
     const uploadedMedia = [];
+
     for (let file of files) {
-      const result = await cloudinary.uploader.upload(file.tempFilePath, { resource_type: "auto" });
+      const resourceType = file.mimetype.startsWith("video") ? "video" : "image";
+
+      // ✅ Upload via buffer (no tempFilePath, so no ENOENT)
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { resource_type: resourceType },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        );
+        file.data ? stream.end(file.data) : reject("File buffer missing");
+      });
 
       const mediaItem = {
         url: result.secure_url,
         filename: result.public_id,
-        type: file.mimetype.startsWith("video") ? "video" : "image",
+        type: resourceType,
       };
 
-      if (file.mimetype.startsWith("video")) {
+      if (resourceType === "video") {
         mediaItem.thumbnailUrl = cloudinary.url(result.public_id + ".jpg", {
           resource_type: "video",
           transformation: [{ width: 320, height: 240, crop: "fill" }],
@@ -117,26 +142,35 @@ module.exports.addComplaint = async (req, res) => {
       complaint: normalizeComplaint(newComplaint, req.user.id),
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "Error saving complaint" });
+    console.error("Add complaint error:", err);
+    res
+      .status(500)
+      .json({ success: false, message: "Error saving complaint" });
   }
 };
 
-// ==================== Show single complaint ====================
+// ==================== Show complaint ====================
 module.exports.showComplaint = async (req, res) => {
   try {
     const { id } = req.params;
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid complaint ID" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid complaint ID" });
     }
 
     const complaint = await Complaint.findById(id).populate("user", "name");
-    if (!complaint) return res.status(404).json({ success: false, message: "Complaint not found" });
+    if (!complaint)
+      return res
+        .status(404)
+        .json({ success: false, message: "Complaint not found" });
 
     res.json({ success: true, data: normalizeComplaint(complaint, req.user?.id) });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: "Error fetching complaint" });
+    res
+      .status(500)
+      .json({ success: false, message: "Error fetching complaint" });
   }
 };
 
@@ -144,44 +178,66 @@ module.exports.showComplaint = async (req, res) => {
 module.exports.deleteComplaint = async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id);
-    if (!complaint) return res.status(404).json({ success: false, message: "Complaint not found" });
+    if (!complaint) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Complaint not found" });
+    }
 
     if (complaint.user.toString() !== req.user.id) {
       return res.status(403).json({ success: false, message: "Unauthorized" });
     }
 
-    // Remove media from Cloudinary
     for (let m of complaint.media) {
-      await cloudinary.uploader.destroy(m.filename, { resource_type: "auto" });
+      try {
+        await cloudinary.uploader.destroy(m.filename, {
+          resource_type: m.type,
+        });
+      } catch (err) {
+        console.error(
+          `Failed to delete media ${m.filename} from Cloudinary:`,
+          err
+        );
+      }
     }
 
     await Complaint.findByIdAndDelete(req.params.id);
+
     res.json({ success: true, message: "Complaint deleted successfully" });
   } catch (err) {
-    console.error(err);
+    console.error("Delete complaint error:", err);
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
+// ==================== Update complaint ====================
 module.exports.updateComplaint = async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id);
     if (!complaint) {
-      return res.status(404).json({ success: false, message: "Complaint not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Complaint not found" });
     }
 
     if (complaint.user.toString() !== req.user.id) {
       return res.status(403).json({ success: false, message: "Unauthorized" });
     }
 
-    // Validate required fields
     if (!req.body.title?.trim() || !req.body.location?.trim()) {
-      return res.status(400).json({ success: false, message: "Title and location are required" });
+      return res.status(400).json({
+        success: false,
+        message: "Title and location are required",
+      });
     }
 
-    // Handle removed media
-    const removedMediaIds = req.body.removedMediaIds ? JSON.parse(req.body.removedMediaIds) : [];
-    let mediaToKeep = complaint.media.filter((m) => !removedMediaIds.includes(m._id.toString()));
+    // Delete removed media
+    const removedMediaIds = req.body.removedMediaIds
+      ? JSON.parse(req.body.removedMediaIds)
+      : [];
+    let mediaToKeep = complaint.media.filter(
+      (m) => !removedMediaIds.includes(m._id.toString())
+    );
 
     for (let m of complaint.media) {
       if (removedMediaIds.includes(m._id.toString())) {
@@ -189,15 +245,26 @@ module.exports.updateComplaint = async (req, res) => {
       }
     }
 
-    // Handle new media uploads
-    const newFiles = req.files?.media ? (Array.isArray(req.files.media) ? req.files.media : [req.files.media]) : [];
+    // Upload new media
+    const newFiles = req.files?.media
+      ? Array.isArray(req.files.media)
+        ? req.files.media
+        : [req.files.media]
+      : [];
     const newUploadedMedia = [];
 
     for (let file of newFiles) {
       const resourceType = file.mimetype.startsWith("video") ? "video" : "image";
 
-      const result = await cloudinary.uploader.upload(file.tempFilePath, {
-        resource_type: resourceType,
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { resource_type: resourceType },
+          (error, result) => {
+            if (error) reject(error);
+            else resolve(result);
+          }
+        );
+        file.data ? stream.end(file.data) : reject("File buffer missing");
       });
 
       const mediaItem = {
@@ -217,7 +284,6 @@ module.exports.updateComplaint = async (req, res) => {
       newUploadedMedia.push(mediaItem);
     }
 
-    // Update complaint fields
     complaint.media = [...mediaToKeep, ...newUploadedMedia];
     complaint.title = req.body.title?.trim();
     complaint.description = req.body.description?.trim() || complaint.description;
@@ -236,12 +302,13 @@ module.exports.updateComplaint = async (req, res) => {
   } catch (error) {
     console.error("Update error:", error);
     if (error.name === "ValidationError") {
-      return res.status(400).json({ success: false, message: error.message, errors: error.errors });
+      return res
+        .status(400)
+        .json({ success: false, message: error.message, errors: error.errors });
     }
     res.status(500).json({ success: false, message: "Server error occurred" });
   }
 };
-
 
 // ==================== Toggle upvote ====================
 module.exports.toggleUpvote = async (req, res) => {
@@ -249,12 +316,20 @@ module.exports.toggleUpvote = async (req, res) => {
     const { id } = req.params;
     const userId = req.user.id;
 
-    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ success: false, message: "Invalid complaint ID" });
+    if (!mongoose.Types.ObjectId.isValid(id))
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid complaint ID" });
 
     const complaint = await Complaint.findById(id);
-    if (!complaint) return res.status(404).json({ success: false, message: "Complaint not found" });
+    if (!complaint)
+      return res
+        .status(404)
+        .json({ success: false, message: "Complaint not found" });
 
-    const alreadyUpvoted = complaint.upvotes?.some((u) => u.toString() === userId);
+    const alreadyUpvoted = complaint.upvotes?.some(
+      (u) => u.toString() === userId
+    );
     if (alreadyUpvoted) complaint.upvotes.pull(userId);
     else complaint.upvotes.push(userId);
 
@@ -268,6 +343,8 @@ module.exports.toggleUpvote = async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: "Server error while toggling upvote" });
+    res
+      .status(500)
+      .json({ success: false, message: "Server error while toggling upvote" });
   }
 };

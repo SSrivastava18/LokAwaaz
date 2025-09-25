@@ -21,7 +21,7 @@ cloudinary.config({
 const userRoute = require("./routes/userRoute.js");
 const complaintRoute = require("./routes/complaintRoute.js");
 const commentRoute = require("./routes/commentRoute.js");
-const governmentRoute = require("./routes/governmentRoute.js"); // 🔹 Gov Routes
+const governmentRoute = require("./routes/governmentRoute.js");
 
 // ==================== Environment Variables ====================
 const dbUrl = process.env.ATLASDBURL || "mongodb://localhost:27017/staystory";
@@ -33,20 +33,11 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use(
   fileUpload({
-    useTempFiles: true,
+    useTempFiles: false, // ✅ no /tmp or local folder
   })
 );
 
 app.use(cors());
-
-// Remove COOP/COEP headers in development (for media handling in dev)
-if (process.env.NODE_ENV !== "production") {
-  app.use((req, res, next) => {
-    res.removeHeader("Cross-Origin-Opener-Policy");
-    res.removeHeader("Cross-Origin-Embedder-Policy");
-    next();
-  });
-}
 
 // ==================== Database Connection ====================
 async function connectDB() {
@@ -63,57 +54,62 @@ async function connectDB() {
 }
 connectDB();
 
-// ==================== Media Upload Route (for Complaints) ====================
+// ==================== Helper: Upload to Cloudinary ====================
+function uploadToCloudinary(fileBuffer, isVideo) {
+  return new Promise((resolve, reject) => {
+    const uploadStream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: isVideo ? "video" : "image",
+        folder: "complaints_media", // ✅ stored only in Cloudinary, not locally
+      },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result);
+      }
+    );
+    streamifier.createReadStream(fileBuffer).pipe(uploadStream);
+  });
+}
+
+// ==================== Media Upload Route ====================
 app.post("/api/upload", async (req, res) => {
   try {
     if (!req.files || !req.files.media) {
       return res.status(400).json({ success: false, message: "No file uploaded" });
     }
 
-    const file = req.files.media;
-    const fileExt = file.name.split(".").pop().toLowerCase();
-    const isVideo = ["mp4", "mov", "avi"].includes(fileExt);
+    // Normalize to array
+    const files = Array.isArray(req.files.media)
+      ? req.files.media
+      : [req.files.media];
 
-    const uploadOptions = {
-      resource_type: isVideo ? "video" : "image",
-      folder: "complaints_media",
-    };
+    const uploadResults = [];
 
-    const uploadToCloudinary = () =>
-      new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          uploadOptions,
-          (error, result) => {
-            if (error) return reject(error);
-            resolve(result);
-          }
-        );
+    for (const file of files) {
+      const fileExt = file.name.split(".").pop().toLowerCase();
+      const isVideo = ["mp4", "mov", "avi"].includes(fileExt);
 
-        streamifier.createReadStream(file.data).pipe(uploadStream);
-      });
+      // ✅ Upload directly from memory
+      const uploadResult = await uploadToCloudinary(file.data, isVideo);
 
-    const uploadResult = await uploadToCloudinary();
+      let thumbnailUrl = null;
+      if (isVideo) {
+        thumbnailUrl = cloudinary.url(uploadResult.public_id + ".jpg", {
+          resource_type: "video",
+          transformation: [
+            { width: 320, height: 240, crop: "fill", fetch_format: "auto" },
+          ],
+        });
+      }
 
-    const mediaUrl = uploadResult.secure_url;
-    let thumbnailUrl = null;
-
-    if (isVideo) {
-      thumbnailUrl = cloudinary.url(uploadResult.public_id + ".jpg", {
-        resource_type: "video",
-        transformation: [
-          { width: 320, height: 240, crop: "fill", fetch_format: "auto" },
-        ],
+      uploadResults.push({
+        mediaUrl: uploadResult.secure_url, // ✅ stored in Cloudinary
+        thumbnailUrl,
+        type: isVideo ? "video" : "image",
       });
     }
 
-    res.json({
-      success: true,
-      data: {
-        mediaUrl,
-        thumbnailUrl,
-        type: isVideo ? "video" : "image",
-      },
-    });
+    res.json({ success: true, data: uploadResults });
   } catch (err) {
     console.error("❌ Upload Error:", err);
     res.status(500).json({ success: false, message: "Upload failed" });
@@ -124,14 +120,14 @@ app.post("/api/upload", async (req, res) => {
 app.use("/user", userRoute);
 app.use("/complaints", complaintRoute);
 app.use("/comments", commentRoute);
-app.use("/api/government", governmentRoute); // 🔹 Gov routes (OTP + complaints)
+app.use("/api/government", governmentRoute);
 
 // ==================== Health Check Endpoint ====================
 app.get("/", (req, res) => {
   res.json({ success: true, message: "Backend is running 🚀" });
 });
 
-// ==================== Generic Error Handler ====================
+// ==================== Error Handler ====================
 app.use((err, req, res, next) => {
   console.error("❌ Error:", err.stack || err);
   res.status(500).json({ success: false, message: "Something went wrong" });
@@ -142,7 +138,7 @@ app.listen(port, () => {
   console.log(`🚀 Server running at http://localhost:${port}`);
 });
 
-// ==================== Global Unhandled Promise Rejection Handler ====================
+// ==================== Handle Unhandled Rejections ====================
 process.on("unhandledRejection", (error) => {
   console.error("❌ Unhandled Rejection:", error);
   process.exit(1);

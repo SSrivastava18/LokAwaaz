@@ -36,13 +36,13 @@ exports.addComment = async (req, res) => {
     }
 
     // 🔹 If logged in, use req.user.name/email, else fallback to "Anonymous"
-    const author =
-      req.user?.name || req.user?.email || "Anonymous";
+    const author = req.user?.name || req.user?.email || "Anonymous";
 
     const comment = await Comment.create({
       complaintId,
       text: text.trim(),
       author,
+      userId: req.user?._id ? req.user._id.toString() : null, // ✅ store user ID
     });
 
     return res.status(201).json({
@@ -63,16 +63,25 @@ exports.addComment = async (req, res) => {
 // ==================== Delete a comment ====================
 exports.deleteComment = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { commentId } = req.params;
 
-    const deleted = await Comment.findByIdAndDelete(id);
-
-    if (!deleted) {
+    const comment = await Comment.findById(commentId);
+    if (!comment) {
       return res.status(404).json({
         success: false,
         message: "Comment not found",
       });
     }
+
+    // ✅ Ensure only the author can delete
+    if (!req.user || comment.userId?.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to delete this comment",
+      });
+    }
+
+    await comment.deleteOne();
 
     return res.status(200).json({
       success: true,
@@ -91,7 +100,7 @@ exports.deleteComment = async (req, res) => {
 // ==================== Update a comment ====================
 exports.updateComment = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { commentId } = req.params;
     const { text } = req.body;
 
     if (!text || text.trim() === "") {
@@ -101,23 +110,29 @@ exports.updateComment = async (req, res) => {
       });
     }
 
-    const updated = await Comment.findByIdAndUpdate(
-      id,
-      { text: text.trim() },
-      { new: true, runValidators: true }
-    );
-
-    if (!updated) {
+    const comment = await Comment.findById(commentId);
+    if (!comment) {
       return res.status(404).json({
         success: false,
         message: "Comment not found",
       });
     }
 
+    // ✅ Ensure only the author can update
+    if (!req.user || comment.userId?.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Not authorized to edit this comment",
+      });
+    }
+
+    comment.text = text.trim();
+    await comment.save();
+
     return res.status(200).json({
       success: true,
       message: "Comment updated successfully",
-      comment: updated,
+      comment,
     });
   } catch (err) {
     console.error("❌ [updateComment] Error:", err);

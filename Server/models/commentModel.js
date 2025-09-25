@@ -7,11 +7,21 @@ const commentSchema = new mongoose.Schema(
       ref: "Complaint",
       required: true,
     },
-    text: { type: String, required: true, trim: true },
-    // 🔹 Can be User reference OR Anonymous
+    text: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    // 🔹 Author name (for display)
     author: {
       type: String,
       default: "Anonymous",
+    },
+    // 🔹 Reference to the user who created the comment
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: false, // Anonymous comments allowed
     },
   },
   { timestamps: true }
