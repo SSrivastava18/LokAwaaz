@@ -4,8 +4,7 @@ import { ComplaintsContext } from "../ComplaintsContext";
 import { toast } from "react-toastify";
 
 const Nav = ({ setshowLogin }) => {
-  const [open, setOpen] = useState(false); // mobile menu
-  const [dropdownOpen, setDropdownOpen] = useState(false); // user dropdown
+  const [open, setOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { token, user, logout, role } = useContext(ComplaintsContext);
@@ -21,27 +20,14 @@ const Nav = ({ setshowLogin }) => {
     if (role === "public") {
       if (location.pathname === "/home") {
         window.scrollTo({ top: 0, behavior: "smooth" });
-        setTimeout(() => {
-          document.documentElement.scrollTop = 0;
-          document.body.scrollTop = 0;
-        }, 300);
-      } else {
-        navigate("/home");
-        setTimeout(() => {
-          window.scrollTo({ top: 0, behavior: "smooth" });
-          document.documentElement.scrollTop = 0;
-          document.body.scrollTop = 0;
-        }, 300);
-      }
-    } else if (role === "govt") {
-      navigate("/gov-dashboard");
-    } else {
-      if (location.pathname === "/home") {
-        window.scrollTo({ top: 0, behavior: "smooth" });
       } else {
         navigate("/home");
         setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 100);
       }
+    } else if (role === "govt") {
+      navigate("/gov-dashboard");
+    } else {
+      navigate("/home");
     }
     setOpen(false);
   };
@@ -66,78 +52,52 @@ const Nav = ({ setshowLogin }) => {
 
   const handleLogout = () => {
     logout();
-    toast.success(
-      user?.name
-        ? `✅ ${user.name}, you have been logged out.`
-        : "✅ You have been logged out."
-    );
+    toast.success("You have been logged out.");
     navigate("/home");
   };
 
   return (
-    <nav className="w-full bg-sky-800 h-20 flex items-center justify-between px-5 text-amber-50 relative">
+    <nav
+      className="fixed top-0 left-0 w-full h-16 flex items-center justify-between px-6 
+      bg-transparent backdrop-blur-sm z-50 text-black"
+    >
+      {/* Logo */}
       <div>
-        <h1 className="text-2xl md:text-4xl font-bold font-serif ml-2 md:ml-20">
+        <h1
+          className="text-2xl font-bold font-serif cursor-pointer"
+          onClick={handleHomeClick}
+        >
           LokAwaaz
         </h1>
       </div>
 
       {/* Desktop Menu */}
-      <div className="hidden md:flex items-center gap-6 text-lg font-semibold font-serif">
-        <button onClick={handleHomeClick} className="cursor-pointer">
-          Home
-        </button>
-
-        <button
-          onClick={handleRegisterComplaintClick}
-          className="cursor-pointer"
-        >
+      <div className="hidden md:flex items-center gap-8 text-black font-medium">
+        <button onClick={handleRegisterComplaintClick}>
           Register Complaint
         </button>
-
+        <button onClick={() => navigate("/view-complaints")}>
+          View Complaints
+        </button>
         <button onClick={() => navigate("/contact")}>Contact</button>
-        <button onClick={() => navigate("/about")}>About</button>
 
-        {/* If logged in → show user dropdown */}
         {token ? (
-          <div className="relative">
-            <button
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-1 cursor-pointer"
-            >
-              Hi, {user?.name || "User"} <span>▼</span>
+          <>
+            <button onClick={() => navigate("/my-complaints")}>
+              My Complaints
             </button>
-            {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-40 bg-white text-black rounded-lg shadow-lg z-10">
-                <button
-                  onClick={() => {
-                    navigate("/my-complaints");
-                    setDropdownOpen(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                >
-                  My Complaints
-                </button>
-                <button
-                  onClick={() => {
-                    handleLogout();
-                    setDropdownOpen(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100"
-                >
-                  Logout
-                </button>
-              </div>
-            )}
-          </div>
+            <button onClick={handleLogout} className="text-red-500">
+              Logout
+            </button>
+          </>
         ) : (
-          <button onClick={() => setshowLogin(true)}>Signup</button>
+          <button onClick={() => setshowLogin(true)}>Signin</button>
         )}
       </div>
 
       {/* Mobile Menu Toggle */}
       <button
-        className="md:hidden absolute right-5 top-5 text-2xl"
+        className="md:hidden text-2xl text-black"
         onClick={() => setOpen(!open)}
       >
         {open ? "✖" : "☰"}
@@ -145,67 +105,29 @@ const Nav = ({ setshowLogin }) => {
 
       {/* Mobile Menu */}
       {open && (
-        <div className="absolute top-20 left-0 w-full bg-sky-700 flex flex-col items-center gap-4 py-4 md:hidden text-lg font-semibold font-serif">
-          <button onClick={handleHomeClick} className="cursor-pointer">
-            Home
-          </button>
-
-          <button
-            onClick={handleRegisterComplaintClick}
-            className="cursor-pointer"
-          >
+        <div
+          className="absolute top-16 left-0 w-full bg-white/90 backdrop-blur-md 
+          flex flex-col items-center gap-4 py-4 md:hidden text-black font-medium shadow-lg"
+        >
+          <button onClick={handleRegisterComplaintClick}>
             Register Complaint
           </button>
-
-          <button
-            onClick={() => {
-              navigate("/contact");
-              setOpen(false);
-            }}
-          >
-            Contact
+          <button onClick={() => navigate("/view-complaints")}>
+            View Complaints
           </button>
-
-          <button
-            onClick={() => {
-              navigate("/about");
-              setOpen(false);
-            }}
-          >
-            About
-          </button>
+          <button onClick={() => navigate("/contact")}>Contact</button>
 
           {token ? (
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-white">Hi, {user?.name || "User"}</span>
-              <button
-                onClick={() => {
-                  navigate("/my-complaints");
-                  setOpen(false);
-                }}
-                className="block px-4 py-2 bg-white text-black rounded-lg hover:bg-gray-100"
-              >
+            <>
+              <button onClick={() => navigate("/my-complaints")}>
                 My Complaints
               </button>
-              <button
-                onClick={() => {
-                  handleLogout();
-                  setOpen(false);
-                }}
-                className="block px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-              >
+              <button onClick={handleLogout} className="text-red-500">
                 Logout
               </button>
-            </div>
+            </>
           ) : (
-            <button
-              onClick={() => {
-                setshowLogin(true);
-                setOpen(false);
-              }}
-            >
-              Signup
-            </button>
+            <button onClick={() => setshowLogin(true)}>Signin</button>
           )}
         </div>
       )}

@@ -55,7 +55,7 @@ function App() {
           <Route path="/gov-dashboard" element={<GovDashboard />} />
 
           {/* 404 Fallback */}
-          <Route path="*" element={<p className="text-center p-6">404: Page not found</p>} />
+          <Route path="*" element={<p className="text-center p-6"></p>} />
         </Routes>
       </div>
 
