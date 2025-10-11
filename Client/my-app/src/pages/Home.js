@@ -5,12 +5,11 @@ import Register from "./Register/Register";
 import ComplaintCard from "../Components/ComaplaintCard";
 import { toast } from "react-toastify";
 import { ArrowRight, ChevronDown, ListPlus, TrendingUp } from "lucide-react";
-import newHeroBackground from "../assets/img.png"; 
+import newHeroBackground from "../assets/img.png";
 
 const Home = () => {
   const { complaints, setComplaints, apiUrl } = useContext(ComplaintsContext);
   const navigate = useNavigate();
-
   const [upvoteLoading, setUpvoteLoading] = useState({});
 
   // Handle upvote
@@ -58,10 +57,8 @@ const Home = () => {
     }
   };
 
-  // Preview only first 3 complaints
   const previewComplaints = complaints.slice(0, 3);
 
-  // Handle See More navigation
   const handleSeeMore = () => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -71,7 +68,6 @@ const Home = () => {
     navigate("/view-complaints");
   };
 
-  // Handle card click
   const handleCardClick = (complaint) => {
     const token = localStorage.getItem("token");
     if (!token) {
@@ -81,53 +77,41 @@ const Home = () => {
     navigate(`/complaint/${complaint._id}`, { state: complaint });
   };
 
-  // Utility for scrolling
   const scrollToSection = (id) => {
-    document.getElementById(id).scrollIntoView({ behavior: "smooth" });
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   };
 
   return (
     <div className="scroll-smooth">
-      {/* 🌟 Hero Section */}
-      <div
-        id="homeSection"
-        className="relative w-full h-screen flex items-center justify-center text-white m-0 p-0"
-      >
-        {/* Background Illustration */}
+      {/* 🌆 Hero Section */}
+      <div className="relative w-full h-screen flex items-center justify-center text-white overflow-hidden">
         <img
-          className="w-full h-full object-cover absolute inset-0 -z-10 opacity-90 blur-sm mt-0"
           src={newHeroBackground}
-          alt="Government building and citizens illustration"
+          alt="City background"
+          className="absolute inset-0 w-full h-full object-cover scale-105 animate-slow-zoom -z-10"
         />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/40 to-black/70 -z-10"></div>
 
-        {/* Dark Overlay */}
-        <div className="absolute inset-0 bg-gray-900 bg-opacity-20 -z-10"></div>
-
-        {/* Frosted Glass Hero Card */}
-        <div
-          className="bg-white bg-opacity-20 backdrop-blur-lg p-8 md:p-12 rounded-3xl shadow-2xl max-w-2xl mx-4 text-center 
-                     border border-blue-300 border-opacity-50 transition-all duration-300 hover:bg-opacity-30"
-        >
-          <h1 className="text-4xl md:text-5xl font-extrabold mb-4 tracking-tight leading-tight text-white">
+        {/* Hero Content */}
+        <div className="bg-white/15 backdrop-blur-lg border border-white/30 p-10 rounded-3xl shadow-2xl text-center max-w-2xl mx-4 animate-fade-in">
+          <h1 className="text-5xl font-extrabold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-300">
             Raise Your Voice, Fix Your City
           </h1>
-          <p className="text-lg md:text-xl text-gray-100 mb-10 font-light">
-            A platform for residents to register and keep track on day to day complaints
+          <p className="text-lg text-gray-200 mb-10">
+            A platform for residents to register and track daily civic complaints with ease.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
             <button
-              className="flex items-center justify-center bg-blue-600 hover:bg-blue-700 transition duration-300 px-6 py-3 text-white text-lg font-bold rounded-lg 
-                         shadow-xl shadow-blue-400/50 transform hover:scale-105"
               onClick={() => scrollToSection("registerSection")}
+              className="flex items-center justify-center bg-blue-600 hover:bg-blue-700 px-6 py-3 text-white text-lg font-semibold rounded-full shadow-lg hover:scale-105 transition"
             >
               <ListPlus className="w-5 h-5 mr-2" />
               Report an Issue
             </button>
             <button
-              className="flex items-center justify-center bg-white text-blue-800 hover:bg-gray-100 transition duration-300 px-6 py-3 text-lg font-bold rounded-lg 
-                         shadow-xl transform hover:scale-105"
               onClick={() => scrollToSection("complaintsSection")}
+              className="flex items-center justify-center bg-white/90 text-blue-700 hover:bg-gray-100 px-6 py-3 text-lg font-semibold rounded-full shadow-lg hover:scale-105 transition"
             >
               <TrendingUp className="w-5 h-5 mr-2" />
               Track a Report
@@ -135,22 +119,18 @@ const Home = () => {
           </div>
         </div>
 
-        {/* Scroll Indicator */}
         <div
           className="absolute bottom-10 animate-bounce cursor-pointer"
           onClick={() => scrollToSection("complaintsSection")}
         >
-          <ChevronDown className="w-8 h-8 text-white" />
+          <ChevronDown className="w-10 h-10 text-white opacity-90 hover:opacity-100 transition" />
         </div>
       </div>
 
-      {/* 📋 Complaints Preview Section */}
-      <div
-        id="complaintsSection"
-        className="w-full min-h-screen bg-gray-100 px-4 sm:px-8 py-16"
-      >
+      {/* 🧾 Complaints Section */}
+      <div id="complaintsSection" className="bg-gray-50 py-16 px-6 sm:px-12">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-4xl font-extrabold text-gray-900 mb-4 pb-3 border-b-2 border-blue-300 flex items-center">
+          <h2 className="text-4xl font-bold text-gray-900 mb-4 flex items-center border-b-2 border-blue-300 pb-2">
             <TrendingUp className="w-8 h-8 mr-3 text-blue-600" />
             Latest Community Concerns
           </h2>
@@ -170,7 +150,7 @@ const Home = () => {
                   <div
                     key={c._id}
                     onClick={() => handleCardClick(c)}
-                    className="cursor-pointer transition duration-300 transform hover:-translate-y-1 shadow-lg hover:shadow-xl rounded-xl"
+                    className="cursor-pointer transition duration-300 transform hover:-translate-y-1 shadow-md hover:shadow-2xl rounded-xl bg-white"
                   >
                     <ComplaintCard
                       complaint={c}
@@ -187,12 +167,11 @@ const Home = () => {
             )}
           </div>
 
-          {/* See More Button */}
           {complaints.length > 3 && (
             <div className="mt-12 text-center">
               <button
                 onClick={handleSeeMore}
-                className="inline-flex items-center px-8 py-4 bg-blue-600 text-white text-lg font-semibold rounded-full shadow-lg hover:bg-blue-700 transition duration-300 transform hover:scale-105"
+                className="inline-flex items-center px-8 py-4 bg-blue-600 text-white text-lg font-semibold rounded-full shadow-lg hover:bg-blue-700 transition hover:scale-105"
               >
                 View All Complaints
                 <ArrowRight className="w-5 h-5 ml-2" />
@@ -203,17 +182,14 @@ const Home = () => {
       </div>
 
       {/* 📝 Register Section */}
-      <div
-        id="registerSection"
-        className="w-full min-h-screen bg-white py-16"
-      >
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div id="registerSection" className="bg-white py-16">
+        <div className="max-w-4xl mx-auto px-6 sm:px-8">
           <h2 className="text-4xl font-extrabold text-blue-700 text-center mb-10">
             <ListPlus className="inline-block w-8 h-8 mr-2 -mt-1" />
             Make Your Voice Heard
           </h2>
 
-          <div className="bg-gray-50 p-6 sm:p-10 rounded-xl shadow-2xl shadow-blue-100 border border-blue-50">
+          <div className="bg-gray-50 p-8 rounded-xl shadow-2xl shadow-blue-100 border border-blue-50">
             <Register />
           </div>
         </div>

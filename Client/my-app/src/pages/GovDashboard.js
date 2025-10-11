@@ -3,6 +3,8 @@ import axios from "axios";
 
 export default function GovDashboard() {
   const [complaints, setComplaints] = useState([]);
+  const [filteredComplaints, setFilteredComplaints] = useState([]);
+  const [activeFilter, setActiveFilter] = useState("All");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [counts, setCounts] = useState({
@@ -26,12 +28,14 @@ export default function GovDashboard() {
   const fetchComplaints = async () => {
     setLoading(true);
     try {
-      const res = await axios.get("http://localhost:5000/api/government/complaints", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await axios.get(
+        "http://localhost:5000/api/government/complaints",
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
 
       const allComplaints = res.data.data;
       setComplaints(allComplaints);
+      setFilteredComplaints(allComplaints);
 
       const pendingCount = allComplaints.filter(c => c.status === "Pending").length;
       const inProgressCount = allComplaints.filter(c => c.status === "Work in Progress").length;
@@ -65,179 +69,118 @@ export default function GovDashboard() {
     }
   };
 
-  if (loading) return <p style={{ padding: "24px" }}>Loading complaints...</p>;
+  const handleFilterChange = (status) => {
+    setActiveFilter(status);
+    if (status === "All") {
+      setFilteredComplaints(complaints);
+    } else {
+      setFilteredComplaints(complaints.filter(c => c.status === status));
+    }
+  };
+
+  if (loading) return <p className="p-6 text-lg">Loading complaints...</p>;
 
   return (
-    <div style={{ padding: "24px", fontFamily: "sans-serif", backgroundColor: "#f0f2f5" }}>
-      <h1 style={{ fontSize: "28px", fontWeight: "bold", marginBottom: "20px", color: "#333" }}>
-        Government Dashboard
-      </h1>
+    <div className="min-h-screen bg-[#f4f6f9] p-6 font-sans">
+      <h1 className="text-3xl font-bold text-gray-800 mb-6">Government Dashboard</h1>
 
-      {message && <p style={{ color: "red", marginBottom: "16px" }}>{message}</p>}
+      {message && <p className="text-red-500 mb-4">{message}</p>}
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: "30px",
-          gap: "20px",
-        }}
-      >
-        <div
-          style={{
-            flex: 1,
-            padding: "20px",
-            borderRadius: "10px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-            background: "#fff",
-            textAlign: "center",
-          }}
-        >
-          <h3 style={{ fontSize: "16px", color: "#666", marginBottom: "8px" }}>Total Complaints</h3>
-          <p style={{ fontSize: "32px", fontWeight: "bold", color: "#333" }}>
-            {counts.total}
-          </p>
-        </div>
-        <div
-          style={{
-            flex: 1,
-            padding: "20px",
-            borderRadius: "10px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-            background: "#fff",
-            textAlign: "center",
-          }}
-        >
-          <h3 style={{ fontSize: "16px", color: "#666", marginBottom: "8px" }}>Pending</h3>
-          <p style={{ fontSize: "32px", fontWeight: "bold", color: "#ef4444" }}>
-            {counts.pending}
-          </p>
-        </div>
-        <div
-          style={{
-            flex: 1,
-            padding: "20px",
-            borderRadius: "10px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-            background: "#fff",
-            textAlign: "center",
-          }}
-        >
-          <h3 style={{ fontSize: "16px", color: "#666", marginBottom: "8px" }}>
-            Work in Progress
-          </h3>
-          <p style={{ fontSize: "32px", fontWeight: "bold", color: "#f97316" }}>
-            {counts.inProgress}
-          </p>
-        </div>
-        <div
-          style={{
-            flex: 1,
-            padding: "20px",
-            borderRadius: "10px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-            background: "#fff",
-            textAlign: "center",
-          }}
-        >
-          <h3 style={{ fontSize: "16px", color: "#666", marginBottom: "8px" }}>Resolved</h3>
-          <p style={{ fontSize: "32px", fontWeight: "bold", color: "#22c55e" }}>
-            {counts.resolved}
-          </p>
-        </div>
+      {/* Stats Section */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+        <StatCard title="Total Complaints" value={counts.total} color="text-gray-800" />
+        <StatCard title="Pending" value={counts.pending} color="text-red-500" />
+        <StatCard title="Work in Progress" value={counts.inProgress} color="text-orange-500" />
+        <StatCard title="Resolved" value={counts.resolved} color="text-green-600" />
       </div>
 
-      {complaints.length === 0 ? (
-        <p>No complaints available.</p>
+      {/* Filter Buttons */}
+      <div className="flex flex-wrap gap-3 mb-8">
+        {["All", "Pending", "Work in Progress", "Resolved"].map(status => (
+          <button
+            key={status}
+            onClick={() => handleFilterChange(status)}
+            className={`px-4 py-2 rounded-full text-sm font-medium border transition 
+              ${
+                activeFilter === status
+                  ? "bg-blue-600 text-white border-blue-600 shadow-md"
+                  : "bg-white text-gray-700 border-gray-300 hover:bg-blue-50"
+              }`}
+          >
+            {status}
+          </button>
+        ))}
+      </div>
+
+      {/* Complaints List */}
+      {filteredComplaints.length === 0 ? (
+        <p className="text-gray-500 text-lg">No complaints found.</p>
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-            gap: "20px",
-          }}
-        >
-          {complaints.map((c) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredComplaints.map(c => (
             <div
               key={c._id}
-              style={{
-                background: "#fff",
-                borderRadius: "10px",
-                padding: "20px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                display: "flex",
-                flexDirection: "column",
-              }}
+              className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 flex flex-col overflow-hidden"
             >
               {c.media?.[0]?.url && (
                 <img
                   src={c.media[0].url}
                   alt={c.title}
-                  style={{
-                    width: "100%",
-                    height: "180px",
-                    objectFit: "cover",
-                    borderRadius: "8px",
-                    marginBottom: "16px",
-                  }}
+                  className="w-full h-48 object-cover"
                 />
               )}
-              <h3 style={{ fontSize: "18px", fontWeight: "600", color: "#333", marginBottom: "4px" }}>
-                {c.title}
-              </h3>
-              <p style={{ fontSize: "14px", color: "#555", marginBottom: "8px" }}>
-                {c.description}
-              </p>
-              <p style={{ fontSize: "14px", marginTop: "6px" }}>
-                <b>Category:</b> {c.category} | <b>Urgency:</b> {c.urgency}
-              </p>
-              <p style={{ fontSize: "14px", marginTop: "4px" }}>
-                <b>Location:</b> {c.location}
-              </p>
-              <p style={{ fontSize: "14px", marginTop: "4px" }}>
-                <b>Citizen:</b> {c.user?.name || "Unknown"}
-              </p>
-              <div style={{ marginTop: "12px", display: "flex", alignItems: "center" }}>
-                <b>Status:</b>{" "}
-                <span
-                  style={{
-                    marginLeft: "8px",
-                    padding: "4px 12px",
-                    borderRadius: "20px",
-                    fontWeight: "600",
-                    color: "#fff",
-                    backgroundColor:
+              <div className="p-4 flex flex-col flex-grow">
+                <h3 className="text-lg font-semibold text-gray-800 mb-1">{c.title}</h3>
+                <p className="text-sm text-gray-600 mb-2 line-clamp-2">{c.description}</p>
+
+                <p className="text-sm text-gray-700 mb-1">
+                  <b>Category:</b> {c.category} | <b>Urgency:</b> {c.urgency}
+                </p>
+                <p className="text-sm text-gray-700 mb-1">
+                  <b>Location:</b> {c.location}
+                </p>
+                <p className="text-sm text-gray-700 mb-3">
+                  <b>Citizen:</b> {c.user?.name || "Unknown"}
+                </p>
+
+                <div className="flex items-center mb-3">
+                  <b className="text-sm mr-2">Status:</b>
+                  <span
+                    className={`text-xs font-bold px-3 py-1 rounded-full ${
                       c.status === "Pending"
-                        ? "#ef4444"
+                        ? "bg-red-500 text-white"
                         : c.status === "Work in Progress"
-                        ? "#f97316"
-                        : "#22c55e",
-                  }}
+                        ? "bg-orange-500 text-white"
+                        : "bg-green-600 text-white"
+                    }`}
+                  >
+                    {c.status}
+                  </span>
+                </div>
+
+                <select
+                  value={c.status}
+                  onChange={e => updateStatus(c._id, e.target.value)}
+                  className="border border-gray-300 rounded-md p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                 >
-                  {c.status}
-                </span>
+                  <option value="Pending">Pending</option>
+                  <option value="Work in Progress">Work in Progress</option>
+                  <option value="Resolved">Resolved</option>
+                </select>
               </div>
-              <select
-                value={c.status}
-                onChange={(e) => updateStatus(c._id, e.target.value)}
-                style={{
-                  marginTop: "12px",
-                  padding: "8px",
-                  width: "100%",
-                  borderRadius: "6px",
-                  border: "1px solid #ccc",
-                  backgroundColor: "#fff",
-                  cursor: "pointer",
-                }}
-              >
-                <option value="Pending">Pending</option>
-                <option value="Work in Progress">Work in Progress</option>
-                <option value="Resolved">Resolved</option>
-              </select>
             </div>
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function StatCard({ title, value, color }) {
+  return (
+    <div className="bg-white rounded-lg shadow-md p-5 text-center hover:shadow-lg transition-shadow duration-300">
+      <h3 className="text-sm text-gray-600 mb-2">{title}</h3>
+      <p className={`text-3xl font-bold ${color}`}>{value}</p>
     </div>
   );
 }
